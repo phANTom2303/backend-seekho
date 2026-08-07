@@ -1,6 +1,6 @@
 import express from 'express'
-import { getPool } from './db.js'
-
+import { getPool } from './utils/db.js'
+import asyncHandler from '#urils/async-handler.js'
 const app = express()
 const PORT = 8000
 const dbpool = getPool()
@@ -39,7 +39,7 @@ app.get('/arr', async (req, res) => {
 })
 
 
-app.post('/arr', validateNumberMiddleWare, async (req, res) => {
+app.post('/arr',  async (req, res) => {
 
     const numericValue = req.numericValue
 
@@ -50,7 +50,7 @@ app.post('/arr', validateNumberMiddleWare, async (req, res) => {
     res.send(`Value : ${numericValue} pushed`);
 })
 
-app.delete('/arr', validateNumberMiddleWare, async (req, res) => {
+app.delete('/arr',  async (req, res) => {
     const numericValue = req.numericValue
 
     const query = 'DELETE FROM DATA WHERE number=$1'
@@ -62,6 +62,14 @@ app.delete('/arr', validateNumberMiddleWare, async (req, res) => {
         return res.send(`Value ${numericValue} deleted`);
 })
 
+
+app.use((err, req, res, next) => {
+    console.error(err.stack); // Log it for yourself
+    res.status(500).json({
+        message: "Something went wrong!",
+        error: err.message // (Keep this simple, don't expose DB secrets to users!)
+    });
+});
 
 app.listen(PORT, () => {
     console.log(`Backend-seekho running on port : ${PORT}`)
