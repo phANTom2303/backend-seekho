@@ -13,4 +13,33 @@
 | 8 | Background job: `node-cron` runs nightly, recalculates a "current streak" per habit (checks `habit_logs` for gaps) and writes it to a `streaks` table. |
 | 9 | Web scraping: `cheerio` + `axios` scrape a public "quote of the day" page each morning, store it in a `daily_quotes` table. |
 | 10 | Integration: nightly cron recalculates streaks, morning scraper fetches the quote, authenticated API serves habits + streaks + quote, React dashboard displays all three. Deploy backend to Railway/Render, frontend to Vercel. |
- 
+
+# Progress : 
+
+SQL based CRUD endpoints for habits.
+Add a user table and modify existing tables to have user ids as foreign keys as well.
+Then embark on actual habit log CRUD endpoints.
+
+ # Schema as of Now : 
+
+```SQL
+CREATE TABLE HABITS (
+	habit_id SERIAL PRIMARY KEY,
+	habit_name TEXT UNIQUE NOT NULL , 
+	created_at TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP
+);
+```
+
+
+```SQL
+CREATE TABLE habit_logs (
+	habit_id INTEGER NOT NULL,
+	completion_date DATE NOT NULL,
+	
+	-- foreign key syntax 
+	CONSTRAINT habit_id
+	FOREIGN KEY (habit_id)
+	REFERENCES habits(habit_id)
+);
+```
+

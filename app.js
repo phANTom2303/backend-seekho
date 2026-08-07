@@ -1,73 +1,79 @@
 import express from 'express'
 import { getPool } from './utils/db.js'
 import asyncHandler from '#urils/async-handler.js'
+import { AppError } from '#urils/errors.js'
 const app = express()
 const PORT = 8000
 const dbpool = getPool()
 
-console.log((await dbpool.query('SELECT NOW()')).rows)
 
-let arr = [1, 2, 3, 4]
-
-
-function validateNumberMiddleWare(req, res, next) {
-    const { value } = req.query;
-
-    if (value === undefined || value.length == 0) {
-        return res.status(400).send(`Invalid Query Parameter`);
-    }
-
-    const numericValue = Number(value);
-
-    console.log(`attempting to push ${numericValue}`);
-
-    if (Number.isNaN(numericValue)) {
-        return res.status(400).send(`Invalid Input, Valid Decimal Numbers only`);
-    }
-
-    req.numericValue = numericValue
-    next()
-}
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
 app.get('/', (req, res) => {
     res.send('Hello World');
 })
 
-app.get('/arr', async (req, res) => {
-    const result = await dbpool.query('SELECT * FROM DATA')
+app.get('/getHabits', async (req, res) => {
+    const result = await dbpool.query('SELECT * FROM habits')
     return res.send(result.rows)
-})
+});
+
+app.post('/createHabit', asyncHandler(async (req, res) => {
+
+    const habitName = req.body.habitName;
+
+    const query = 'INSERT INTO habits (habit_name) VALUES ($1)';
+
+    await dbpool.query(query, [habitName]);
+
+    res.json({ message: 'Habit created Successfully' });
+}));
+
+app.delete('/removeHabit', asyncHandler(async (req, res) => {
+    const habitName = req.body.habitName;
+
+    const query = 'DELETE FROM habits WHERE habit_name=$1';
+
+    const deleteOutput = await dbpool.query(query, [habitName]);
+
+    if (deleteOutput.rowCount == 0) {
+        throw new AppError("Habit Doesn't Exist", 404);
+    }
+
+    res.json({ message: 'Deletion Successful' });
+}));
 
 
-app.post('/arr',  async (req, res) => {
+app.patch('/renameHabit', asyncHandler(async (req, res) => {
+    const currentHabitName = req.body.currentHabitName;
+    const newHabitName = req.body.newHabitName;
 
-    const numericValue = req.numericValue
+    const query = 'UPDATE habits SET habit_name=$1 WHERE habit_name=$2';
 
-    const query = 'INSERT INTO DATA (number) VALUES ($1)'
+    const updateOutput = await dbpool.query(query, [newHabitName, currentHabitName]);
 
-    await dbpool.query(query, [numericValue])
+    if (updateOutput.rowCount == 0) {
+        throw new AppError("Habit Doesn't Exist", 404);
+    }
 
-    res.send(`Value : ${numericValue} pushed`);
-})
-
-app.delete('/arr',  async (req, res) => {
-    const numericValue = req.numericValue
-
-    const query = 'DELETE FROM DATA WHERE number=$1'
-    const result = await dbpool.query(query, [numericValue])
-
-    if (result.rowCount == 0)
-        return res.send(`Value ${numericValue} doesn't exist`)
-    else
-        return res.send(`Value ${numericValue} deleted`);
-})
+    res.json({ message: "Habit renamed successfully" });
+}));
 
 
 app.use((err, req, res, next) => {
-    console.error(err.stack); // Log it for yourself
-    res.status(500).json({
+
+    let httpStatusCode = err.statusCode || err.status || 500;
+    let message = err.message || "Internal Server Error";
+
+    if (err.code === '23505') {
+        httpStatusCode = 400;
+        message = 'Duplicate error';
+    }
+
+    res.status(httpStatusCode).json({
         message: "Something went wrong!",
-        error: err.message // (Keep this simple, don't expose DB secrets to users!)
+        error: message
     });
 });
 
